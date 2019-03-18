@@ -62,7 +62,9 @@ app.get(/^\/?assets\/(.*)\/?$/i,
     }),
 );
 
-// Handle request for user uploaded files
+// Handle request for theme asset files such as stylesheets, fonts, background images etc
+// The function will resolve the currently active theme from site settings and try to
+// find the requested asset file in that theme directory in Cloud Storage.
 app.get('/_/theme/*', async (request, response) => {
     const filePath = request.url.replace('_/theme/', '');
     console.log(`GET ${request.url}`);
