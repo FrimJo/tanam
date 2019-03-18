@@ -5,9 +5,10 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { join } from 'path';
 import { TanamConfig } from '../../models';
-import * as fileService from './services/file.service';
-import { getDocumentContextByUrl } from './services/document-context.service';
 import { renderDocument } from './render';
+import { getDocumentContextByUrl } from './services/document-context.service';
+import * as fileService from './services/file.service';
+import * as themeService from './services/theme.service';
 
 const DIST_FOLDER = join(process.cwd(), 'browser');
 
@@ -60,6 +61,23 @@ app.get(/^\/?assets\/(.*)\/?$/i,
         setHeaders: (res, path) => res.set('Cache-Control', getCacheHeader()),
     }),
 );
+
+// Handle request for user uploaded files
+app.get('/_/theme/*', async (request, response) => {
+    const filePath = request.url.replace('_/theme/', '');
+    console.log(`GET ${request.url}`);
+
+    const fileContents = await fileService.getThemeAssetFile(await themeService.getTheme(), filePath);
+    if (!fileContents) {
+        response.status(404).send(`Not found: ${request.url}`);
+        return null;
+    }
+
+    response.setHeader('Content-Type', fileService.getContentTypeFromFileName(filePath));
+    response.setHeader('Cache-Control', getCacheHeader());
+    response.send(fileContents);
+    return null;
+});
 
 // Handle request for user uploaded files
 app.get('/_/image/:fileId', async (request, response) => {

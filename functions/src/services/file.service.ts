@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
-import { TanamFile, Document, SiteInformation } from '../../../models';
+import { TanamFile, Document, SiteInformation, Theme } from '../../../models';
+import { FieldPath } from '@google-cloud/firestore';
 
 const siteCollection = () => admin.firestore().collection('tanam').doc(process.env.GCLOUD_PROJECT);
 
@@ -13,6 +14,20 @@ export async function getFavicon() {
     return fileContent;
 }
 
+export async function getThemeAssetFile(theme: Theme, filePath: string) {
+    const storagePath = `/tanam/themes/${theme.id}/${FieldPath}`.replace(/\/\//gi, '/');
+    const contentFile = await admin.storage().bucket().file(storagePath);
+    const [contentExists] = await contentFile.exists();
+    if (!contentExists) {
+        console.log(`[getThemeAssetFile] File '${storagePath}' does not exist`);
+        return null;
+    }
+    const [fileContent] = await contentFile.download();
+    const bytesOfData = (fileContent.byteLength / 1024).toFixed(2);
+    console.log(`[getThemeAssetFile] File '${storagePath}' size: ${bytesOfData} kB`);
+    return fileContent;
+}
+
 export async function getImageFile(fileId: string, variant?: 'large' | 'medium' | 'small') {
     const doc = await siteCollection()
         .collection('files').doc(fileId)
@@ -23,12 +38,13 @@ export async function getImageFile(fileId: string, variant?: 'large' | 'medium' 
     const contentFile = await admin.storage().bucket().file(storagePath);
     const [contentExists] = await contentFile.exists();
     if (!contentExists) {
+        console.log(`[getImageFile] File '${storagePath}' does not exist`);
         return null;
     }
 
     const [fileContent] = await contentFile.download();
     const bytesOfData = (fileContent.byteLength / 1024).toFixed(2);
-    console.log(`[getCloudStorageFile] File '${storagePath}' size: ${bytesOfData} kB`);
+    console.log(`[getImageFile] File '${storagePath}' size: ${bytesOfData} kB`);
     return fileContent;
 }
 
@@ -66,4 +82,80 @@ export async function getSitemap() {
     });
 
     return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries.join('')}</urlset>`;
+}
+
+export function getContentTypeFromFileName(filePath: string) {
+    const supportedContentTypes = {
+        'audio/aac': /\.(aac)$/i,
+        'application/x-abiword': /\.(abw)$/i,
+        'application/octet-stream': /\.(arc|bin)$/i,
+        'video/x-msvideo': /\.(avi)$/i,
+        'application/vnd.amazon.ebook': /\.(azw)$/i,
+        'application/x-bzip': /\.(bz)$/i,
+        'application/x-bzip2': /\.(bz2)$/i,
+        'application/x-csh': /\.(csh)$/i,
+        'text/csv; charset=utf-8': /\.(csv)$/i,
+        'application/msword': /\.(doc)$/i,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': /\.(docx)$/i,
+        'application/vnd.ms-fontobject': /\.(eot)$/i,
+        'application/epub+zip': /\.(epub)$/i,
+        'application/ecmascript; charset=utf-8': /\.(es)$/i,
+        'text/calendar; charset=utf-8': /\.(ics)$/i,
+        'application/java-archive': /\.(jar)$/i,
+        'audio/midi': /\.(mid|midi)$/i,
+        'video/mpeg': /\.(mpeg)$/i,
+        'application/vnd.apple.installer+xml': /\.(mpkg)$/i,
+        'application/vnd.oasis.opendocument.presentation': /\.(odp)$/i,
+        'application/vnd.oasis.opendocument.spreadsheet': /\.(ods)$/i,
+        'application/vnd.oasis.opendocument.text': /\.(odt)$/i,
+        'audio/ogg': /\.(oga)$/i,
+        'video/ogg': /\.(ogv)$/i,
+        'application/ogg': /\.(ogx)$/i,
+        'application/pdf': /\.(pdf)$/i,
+        'application/vnd.ms-powerpoint': /\.(ppt)$/i,
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': /\.(pptx)$/i,
+        'application/x-rar-compressed': /\.(rar)$/i,
+        'application/rtf': /\.(rtf)$/i,
+        'application/x-sh; charset=utf-8': /\.(sh)$/i,
+        'application/x-tar': /\.(tar)$/i,
+        'application/typescript; charset=utf-8': /\.(ts|d\.ts)$/i,
+        'application/vnd.visio': /\.(vsd)$/i,
+        'audio/wav': /\.(wav)$/i,
+        'audio/webm': /\.(weba)$/i,
+        'video/webm': /\.(webm)$/i,
+        'image/webp': /\.(webp)$/i,
+        'application/vnd.ms-excel': /\.(xls)$/i,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': /\.(xlsx)$/i,
+        'application/xml; charset=utf-8': /\.(xml)$/i,
+        'application/vnd.mozilla.xul+xml': /\.(xul)$/i,
+        'application/zip': /\.(zip)$/i,
+        'application/x-7z-compressed': /\.(7z)$/i,
+        'font/otf': /\.(otf)$/i,
+        'font/ttf': /\.(ttf)$/i,
+        'font/woff': /\.(woff)$/i,
+        'font/woff2': /\.(woff2)$/i,
+        'image/jpeg': /\.(jpg|jpeg)$/i,
+        'image/gif': /\.(gif)$/i,
+        'image/png': /\.(png)$/i,
+        'image/tiff': /\.(tif|tiff)$/i,
+        'image/bmp': /\.(bmp)$/i,
+        'image/ico': /\.(ico)$/i,
+        'image/svg+xml': /\.(svg)$/i,
+        'text/plain; charset=utf-8': /\.(txt)$/i,
+        'text/css; charset=utf-8': /\.(css)$/i,
+        'text/javascript; charset=utf-8': /\.(js|js\.map)$/i,
+        'application/json; charset=utf-8': /\.(json)$/i,
+        'text/template': /\.(dust|hbs|ejs)$/i
+    };
+
+    console.log(`[getContentTypeFromFileName] Resolving content type for: ${filePath}`);
+    for (const contentType in supportedContentTypes) {
+        if (supportedContentTypes[contentType].test(filePath)) {
+            console.log(`[getContentTypeFromFileName] Content type ${contentType} for: ${filePath}`);
+            return contentType;
+        }
+    }
+
+    console.log(`[getContentTypeFromFileName] No special content type found for: ${filePath}`);
+    return 'text/plain; charset=utf-8';
 }
