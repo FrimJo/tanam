@@ -1,6 +1,5 @@
 import * as admin from 'firebase-admin';
 import { TanamFile, Document, SiteInformation, Theme } from '../../../models';
-import { FieldPath } from '@google-cloud/firestore';
 
 const siteCollection = () => admin.firestore().collection('tanam').doc(process.env.GCLOUD_PROJECT);
 
@@ -15,7 +14,7 @@ export async function getFavicon() {
 }
 
 export async function getThemeAssetFile(theme: Theme, filePath: string) {
-    const storagePath = `/tanam/themes/${theme.id}/${FieldPath}`.replace(/\/\//gi, '/');
+    const storagePath = `/tanam/themes/${theme.id}/${filePath}`.replace(/\/\//gi, '/');
     const contentFile = await admin.storage().bucket().file(storagePath);
     const [contentExists] = await contentFile.exists();
     if (!contentExists) {
